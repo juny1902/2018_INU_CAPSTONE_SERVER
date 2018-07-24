@@ -15,6 +15,7 @@ import org.w3c.dom.NodeList;
 public class Server_GetOn {
 	public static void main(String[] args) throws MqttException {
 		MqttClient client = new MqttClient("tcp://iot.eclipse.org:1883", MqttClient.generateClientId());
+		MqttClient subClient = new MqttClient("tcp://iot.eclipse.org:1883", MqttClient.generateClientId());
 		client.setCallback(new MqttCallback() {
 
 			@Override
@@ -30,7 +31,10 @@ public class Server_GetOn {
 						+ routeId;
 				boolean waitArrived = true;
 				
-			
+				boolean goRas_geton = false; //  subscribe message duplication prohibition
+				boolean goRas_getend = false; //  subscribe message duplication prohibition
+				boolean goRas_getoff = false; //  subscribe message duplication prohibition
+				boolean goRas_getoffend = false; //  subscribe message duplication prohibition
 			
 				if (selection.equals("geton")) {
 					
@@ -44,33 +48,38 @@ public class Server_GetOn {
 						NodeList stationSeqList = (NodeList) xpath.evaluate("//busLocationList/stationSeq", document,
 								XPathConstants.NODESET);
 
-						System.out.println("plate length: "+plateNoList.getLength());
-						System.out.println("station length: "+stationSeqList.getLength());
+						System.out.println("geton_plate length: "+plateNoList.getLength());
+						System.out.println("geton_station length: "+stationSeqList.getLength());
 
 						
 						for (int i = 0; i < plateNoList.getLength(); i++) {
 							if ((Integer.parseInt(stationSeqList.item(i).getTextContent()) == Integer.parseInt(busSeq)-1) && (plateNoList.item(i).getTextContent().equals(busNumber))) {
-								System.out.println("Send to Raspberry On : " + busNumber);
-								String res_msg = "geton&" + busNumber; 
-								client.publish("bus_responses",res_msg.getBytes(),0,false);
-								break;
+								if(goRas_geton == false) {
+									System.out.println("geton_Send to Raspberry On1 : " + busNumber);
+									String res_msg = "geton&" + busNumber; 
+									client.publish("bus_responses",res_msg.getBytes(),1,false);
+									System.out.println("Blocked");
+									goRas_geton = true;
+									break;
+								}
 							} 
 						}
 						
 						for (int i = 0; i < plateNoList.getLength(); i++) {
+							System.out.println("2nd for");
 							if((Integer.parseInt(stationSeqList.item(i).getTextContent()) >= Integer.parseInt(busSeq)) && (plateNoList.item(i).getTextContent().equals(busNumber))) {
-								client.reconnect();
-								System.out.println("Send to Raspberry On : " + busNumber);
-								String res_msg = "geton_end&" + busNumber; 
-								client.publish("bus_responses",res_msg.getBytes(),0,false);
-								waitArrived = false;
+								if(goRas_getend == false) {
+									System.out.println("geton_Send to Raspberry On2 : " + busNumber);
+									String res_msg = "geton_end&" + busNumber; 
+									client.publish("bus_responses",res_msg.getBytes(),1,false);
+									waitArrived = false;
+									goRas_getend = true;
+								}
 							}
 						}
-					
-						
-						System.out.println("Get on");
 						Thread.sleep(10000);
 					}
+					System.out.println("geton_While escaped");
 				} else if(selection.equals("getoff")) {
 					while (waitArrived) {
 						org.w3c.dom.Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
@@ -80,30 +89,48 @@ public class Server_GetOn {
 								XPathConstants.NODESET);
 						NodeList stationSeqList = (NodeList) xpath.evaluate("//busLocationList/stationSeq", document,
 								XPathConstants.NODESET);
-
+						
+						
+						System.out.println("getoff_plate length: "+plateNoList.getLength());
+						System.out.println("getoff_station length: "+stationSeqList.getLength());
+						
 						for (int i = 0; i < plateNoList.getLength(); i++) {
-							if ((Integer.parseInt(stationSeqList.item(i).getTextContent()) == Integer.parseInt(busSeq) -1) && (plateNoList.item(i).getTextContent().equals(busNumber))) {
-								System.out.println("Send to Raspberry Off : " + busNumber);
-								String res_msg = "getoff&" + busNumber; 
-								client.publish("bus_responses",res_msg.getBytes(),0,false);
-					
-							}else if((Integer.parseInt(stationSeqList.item(i).getTextContent()) == Integer.parseInt(busSeq)) && (plateNoList.item(i).getTextContent().equals(busNumber))) {
-								System.out.println("Send to Raspberry On : " + busNumber);
-								String res_msg = "getoff_end&" + busNumber; 
-								client.publish("bus_responses",res_msg.getBytes(),0,false);			
-								waitArrived = false;
+							if ((Integer.parseInt(stationSeqList.item(i).getTextContent()) == Integer.parseInt(busSeq)-1) && (plateNoList.item(i).getTextContent().equals(busNumber))) {
+								if(goRas_getoff == false) {
+									System.out.println("getoff_Send to Raspberry On1 : " + busNumber);
+									String res_msg = "getoff&" + busNumber; 
+									client.publish("bus_responses",res_msg.getBytes(),1,false);
+									System.out.println("Blocked");
+									goRas_getoff = true;
+									break;
+								}
+							} 
+						}
+						
+						for (int i = 0; i < plateNoList.getLength(); i++) {
+							System.out.println("2nd for");
+							if((Integer.parseInt(stationSeqList.item(i).getTextContent()) >= Integer.parseInt(busSeq)) && (plateNoList.item(i).getTextContent().equals(busNumber))) {
+								if(goRas_getoffend == false) {
+									System.out.println("getoff_Send to Raspberry On2 : " + busNumber);
+									String res_msg = "getoff_end&" + busNumber; 
+									client.publish("bus_responses",res_msg.getBytes(),1,false);
+									waitArrived = false;
+									goRas_getoffend = true;
+								}
 							}
 						}
+						
 
 						Thread.sleep(10000);
 					}
+					System.out.println("getoff_While escaped");
 				}
-
+				
 			}
 
 			@Override
 			public void deliveryComplete(IMqttDeliveryToken arg0) {
-				// TODO Auto-generated method stub
+				// TODO Auto-generated method stub paho10742599539225
 
 			}
 
@@ -113,6 +140,7 @@ public class Server_GetOn {
 
 			}
 		});
+		System.out.println("client.getClientId()=="+client.getClientId());
 		client.connect();
 		System.out.printf("Connection Established - %s\n", client.getServerURI());
 		client.subscribe("bus_request");
